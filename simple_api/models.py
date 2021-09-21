@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models.deletion import CASCADE
+from django.db.models.fields.related import ForeignKey
 
 
 
@@ -27,4 +29,13 @@ class Book(models.Model):
 
     def __str__(self):
         return self.title
+
+
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class Token(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    token = models.CharField(max_length=255)
 

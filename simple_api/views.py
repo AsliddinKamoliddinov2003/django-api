@@ -1,13 +1,12 @@
 import json
 from django.http.response import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.db.models.fields import Field
+import hashlib
+import random
+from django.contrib.auth import get_user_model
 
 from . import models
-
-
-
-
+from .decorators import token_auth
+from django.views.decorators.csrf import csrf_exempt
 
 
 def serialize_book(obj, many=False, fields=["id", "title", "release_year", "rating", "created_at", "updated_at"]):
@@ -57,7 +56,9 @@ def books(request):
         data = serialize_book(book)
         return JsonResponse(data)
        
+
 @csrf_exempt
+@token_auth
 def book(request, _id):
     book = models.Book.objects.get(id=_id)
     
@@ -91,7 +92,7 @@ def book(request, _id):
         rating = body.get("rating", 0.0)
         category_id = body.get("category",0)
 
-        category = models.Category.objects.get(id=category_id)
+        # category = models.Category.objects.get(id=category_id)
         
         if title:
             book.title = title
@@ -110,6 +111,39 @@ def book(request, _id):
         data = serialize_book(book)
         book.delete()
         return JsonResponse(data)
+
+
+User = get_user_model()
+
+@csrf_exempt
+def login(request):
+    data = json.loads(request.body)
+
+    username = data["username"]
+    password = data["password"]
+    
+    user = User.objects.filter(username=username)
+
+    if user.exists():
+        user = user.first()
+        if user.check_password(password):
+            token = models.Token.objects.filter(user=user)
+            if token.exists():
+                token = token.first()
+            else:
+                hash = hashlib.sha224((username + password + str(random.randint(1, 9999))).encode()).hexdigest()
+                token = models.Token(user=user, token = hash)
+                token.save()
+
+            return JsonResponse({ "token" : token.token })
+
+
+    return JsonResponse({"error":"bunday user yo'q"})
+
+
+
+
+
         
 
         
